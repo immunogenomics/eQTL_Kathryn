@@ -198,26 +198,9 @@ saveRDS(full_chr, "q2_3_output/full_chr.rds")
 # paste("saveRDS(chr1_", 1:29, ", 'q2_3_output/chr1_", 1:29, ".rds')", sep = "", collapse="  ")
 full_chr <- readRDS("q2_3_output/full_chr.rds")
 
-# some random calculations to figure things out
-# > nchar(gsub(', |\"|\n', "", paste(chr1[1:x[1]],collapse="")))
-# [1] 8594853
-# > nchar(full_chr)
-# [1] 249250708
-# > 249250708/8594853
-# [1] 29
-# > nchar("TCATGCCCCGAGAGCTGAGTGCAAGGGAGAGGCAGCGCTGTCTGTGCTTC")*171897
-# [1] 8594850
-# > 171897*50*29
-# [1] 249250650
-# > 249250708-249250650
-# [1] 58
-# > substr(full_chr, 1, 10)
-# [1] "c(NNNNNNNN"
-# > substr(chr1_1, 1, 10)
-# [1] "c(NNNNNNNN"
-
 # replace all parentheses - not sure if this will work in previous gsub creations
-full_chr_mod <- gsub('c\\(|//)', "", full_chr)
+full_chr_mod <- gsub('c\\(|\\)', "", full_chr)
+full_chr_mod <- gsub(')', "", full_chr_mod)
 
 # ==========================================================
 # a_gene_snp
@@ -234,16 +217,16 @@ a_gene_snp$SNPWindowStart <- a_gene_snp$SNPPos-20
 a_gene_snp$SNPWindowEnd <- a_gene_snp$SNPPos+20
 
 a_gene_snp$fasta_seq_og <- toupper(str_sub(full_chr_mod, a_gene_snp$SNPWindowStart, a_gene_snp$SNPWindowEnd+1))
-# rs10082323 tggaaattgagccttggagAgattaaatgcatggggcatgcc
 a_gene_snp$fasta_seq_mod <- a_gene_snp$fasta_seq_og
-substr(a_gene_snp$fasta_seq_mod, 20, 20) <- a_gene_snp$OtherAllele
-# rs10082323 tggaaattgagccttggagGgattaaatgcatggggcatgcc
+# NEW based on previous test: make bp position 21, and make it Assessed Allele
+substr(a_gene_snp$fasta_seq_mod, 21, 21) <- a_gene_snp$AssessedAllele
+
+fwrite(a_gene_snp, "q2_3_output/a_gene_snp.txt", sep="\t")
 
 # the 1 at the end should be the + or - strand...fix this
-# doesn't really work
 # write.fasta(a_gene_snp$fasta_seq_mod, paste("chromosome:GRCh37:",a_gene_snp$SNPChr, ":", a_gene_snp$SNPWindowStart, ":", a_gene_snp$SNPWindowEnd,":1", sep=""), "q2_3_output/fasta_master1.fa", open = "w", nbchar = 60, as.string = F)
 
-write.fasta(a_gene_snp$fasta_seq_mod[1], paste("chromosome:GRCh37:",a_gene_snp$SNPChr[1], ":", a_gene_snp$SNPWindowStart[1], ":", a_gene_snp$SNPWindowEnd[1],":1", sep=""), "q2_3_output/fasta_master1.fa", open = "w", nbchar = 60, as.string = F)
+write.fasta(a_gene_snp$fasta_seq_mod[1], paste("chromosome:GRCh37:",a_gene_snp$SNPChr[1], ":", a_gene_snp$SNPWindowStart[1], ":", a_gene_snp$SNPWindowEnd[1],":1", sep=""), "q2_3_output/fasta_master_alt.fa", open = "w", nbchar = 60, as.string = F)
 for (i in 2:nrow(a_gene_snp)){
   write.fasta(a_gene_snp$fasta_seq_mod[i], paste("chromosome:GRCh37:",a_gene_snp$SNPChr[i], ":", a_gene_snp$SNPWindowStart[i], ":", a_gene_snp$SNPWindowEnd[i],":1", sep=""), "q2_3_output/fasta_master_alt.fa", open = "a", nbchar = 60, as.string = F)
 }
@@ -253,30 +236,54 @@ for (i in 2:nrow(a_gene_snp)){
   write.fasta(a_gene_snp$fasta_seq_og[i], paste("chromosome:GRCh37:",a_gene_snp$SNPChr[i], ":", a_gene_snp$SNPWindowStart[i], ":", a_gene_snp$SNPWindowEnd[i],":1", sep=""), "q2_3_output/fasta_master_og.fa", open = "a", nbchar = 60, as.string = F)
 }
 
+# new fasta file! get rid of duplicates and make sure SNPs fit
+
+a_gene_snp_new <- a_gene_snp[which(str_sub(a_gene_snp$fasta_seq_og, 21, 21) == a_gene_snp$OtherAllele), ] # 710,183 x 14
+a_gene_snp_new2 <- a_gene_snp_new[!duplicated(a_gene_snp_new$SNP),] # 269,450 x 14 non duplicated
+
+write.fasta(a_gene_snp_new2$fasta_seq_mod[1], paste("chromosome:GRCh37:",a_gene_snp_new2$SNPChr[1], ":", a_gene_snp_new2$SNPWindowStart[1], ":", a_gene_snp_new2$SNPWindowEnd[1],":1", sep=""), "q2_3_output/fasta_master_alt.fa", open = "w", nbchar = 60, as.string = F)
+for (i in 2:nrow(a_gene_snp_new2)){
+  write.fasta(a_gene_snp_new2$fasta_seq_mod[i], paste("chromosome:GRCh37:",a_gene_snp_new2$SNPChr[i], ":", a_gene_snp_new2$SNPWindowStart[i], ":", a_gene_snp_new2$SNPWindowEnd[i],":1", sep=""), "q2_3_output/fasta_master_alt.fa", open = "a", nbchar = 60, as.string = F)
+}
+
+write.fasta(a_gene_snp_new2$fasta_seq_og[1], paste("chromosome:GRCh37:",a_gene_snp_new2$SNPChr[1], ":", a_gene_snp_new2$SNPWindowStart[1], ":", a_gene_snp_new2$SNPWindowEnd[1],":1", sep=""), "q2_3_output/fasta_master_og.fa", open = "w", nbchar = 60, as.string = F)
+for (i in 2:nrow(a_gene_snp_new2)){
+  write.fasta(a_gene_snp_new2$fasta_seq_og[i], paste("chromosome:GRCh37:",a_gene_snp_new2$SNPChr[i], ":", a_gene_snp_new2$SNPWindowStart[i], ":", a_gene_snp_new2$SNPWindowEnd[i],":1", sep=""), "q2_3_output/fasta_master_og.fa", open = "a", nbchar = 60, as.string = F)
+}
+
+
+# test:
+# z <- cbind(str_sub(a_gene_snp$fasta_seq_og, 21, 21), a_gene_snp$AssessedAllele, a_gene_snp$OtherAllele, a_gene_snp$SNP, a_gene_snp$SNPWindowStart, a_gene_snp$SNPWindowEnd, a_gene_snp$SNPPos, str_sub(full_chr_mod,a_gene_snp$SNPPos, a_gene_snp$SNPPos), a_gene_snp$fasta_seq_og)
+# colnames(z) <- c("str_sub(a_gene_snp$fasta_seq_og, 21, 21)", "a_gene_snp$AssessedAllele", "a_gene_snp$OtherAllele", "a_gene_snp$SNP", "a_gene_snp$SNPWindowStart", "a_gene_snp$SNPWindowEnd", "a_gene_snp$SNPPos", "str_sub(full_chr_mod,a_gene_snp$SNPPos,a_gene_snp$SNPPos", "a_gene_snp$fasta_sequence_og")
+# zz <- z[which(z[,2]==toupper(z[,7]) & toupper(z[,7])==toupper(z[,1])), ]
+# colnames(zz) <- c("str_sub(a_gene_snp$fasta_seq_og, 20, 20)", "a_gene_snp$AssessedAllele", "a_gene_snp$SNP", "a_gene_snp$SNPWindowStart", "a_gene_snp$SNPWindowEnd", "a_gene_snp$SNPPos", "str_sub(full_chr_mod,a_gene_snp$SNPPos,a_gene_snp$SNPPos", "a_gene_snp$fasta_sequence_og")
+# zzz <- z[which(z[,2]!=toupper(z[,7])), ]
+# colnames(zzz) <- c("str_sub(a_gene_snp$fasta_seq_og, 20, 20)", "a_gene_snp$AssessedAllele", "a_gene_snp$SNP", "a_gene_snp$SNPWindowStart", "a_gene_snp$SNPWindowEnd", "a_gene_snp$SNPPos", "str_sub(full_chr_mod,a_gene_snp$SNPPos,a_gene_snp$SNPPos", "a_gene_snp$fasta_sequence_og")
 
 # ==========================================================
 # create homer output
 # ==========================================================
 
 # findMotifs.pl /Users/kathryntsai/OneDrive\ -\ Villanova\ University/College/2018-2019/Summer\ 2019/TFs_eQTLs_Research/RProjects/Project2/q2_3_output/fasta_master1.fa fasta /Users/kathryntsai/OneDrive\ -\ Villanova\ University/College/2018-2019/Summer\ 2019/TFs_eQTLs_Research/RProjects/Project2/q2_3_output/ > output.txt
-# findMotifs.pl /Users/kathryntsai/OneDrive\ -\ Villanova\ University/College/2018-2019/Summer\ 2019/TFs_eQTLs_Research/RProjects/Project2/q2_3_output/fasta_master1.fa fasta /Users/kathryntsai/OneDrive\ -\ Villanova\ University/College/2018-2019/Summer\ 2019/TFs_eQTLs_Research/RProjects/Project2/q2_3_output/redo -find ~/homer/data/knownTFs/vertebrates/known.motifs > output2.txt
-# findMotifs.pl /Users/kathryntsai/OneDrive\ -\ Villanova\ University/College/2018-2019/Summer\ 2019/TFs_eQTLs_Research/RProjects/Project2/q2_3_output/fasta_master_og.fa fasta /Users/kathryntsai/OneDrive\ -\ Villanova\ University/College/2018-2019/Summer\ 2019/TFs_eQTLs_Research/RProjects/Project2/q2_3_output/redo -find ~/homer/data/knownTFs/vertebrates/known.motifs > output3.txt
+# findMotifs.pl /Users/kathryntsai/OneDrive\ -\ Villanova\ University/College/2018-2019/Summer\ 2019/TFs_eQTLs_Research/RProjects/Project2/q2_3_output/fasta_master_alt.fa fasta /Users/kathryntsai/OneDrive\ -\ Villanova\ University/College/2018-2019/Summer\ 2019/TFs_eQTLs_Research/RProjects/Project2/q2_3_output/redo -find ~/homer/data/knownTFs/vertebrates/known.motifs > homer_master_alt.txt
+# findMotifs.pl /Users/kathryntsai/OneDrive\ -\ Villanova\ University/College/2018-2019/Summer\ 2019/TFs_eQTLs_Research/RProjects/Project2/q2_3_output/fasta_master_og.fa fasta /Users/kathryntsai/OneDrive\ -\ Villanova\ University/College/2018-2019/Summer\ 2019/TFs_eQTLs_Research/RProjects/Project2/q2_3_output/redo -find ~/homer/data/knownTFs/vertebrates/known.motifs > homer_master_ref.txt
 
 # ==========================================================
 # analyze homer output
 # ==========================================================
 
 ref <- fread("q2_3_input/homer_master_ref.txt", sep='\t', header=T)
-colnames(ref) <- c("ref_FASTA_ID", "ref_Offset", "Sequence", "Motif Name", "ref_Strand", "ref_MotifScore")
+colnames(ref) <- c("FASTA_ID", "ref_Offset", "Sequence", "Motif Name", "ref_Strand", "ref_MotifScore")
 alt <- fread("q2_3_input/homer_master_alt.txt", sep='\t', header=T)
-colnames(alt) <- c("alt_FASTA_ID", "alt_Offset", "Sequence", "Motif Name", "alt_Strand", "alt_MotifScore")
+colnames(alt) <- c("FASTA_ID", "alt_Offset", "Sequence", "Motif Name", "alt_Strand", "alt_MotifScore")
 
 # > nrow(ref)
-# [1] 6193641
+# [1] 6144198
 # > nrow(alt)
-# [1] 6084453
+# [1] 6178496
 
-ref_alt_common <- merge(ref, alt, by=c("Sequence", "Motif Name"))
+#ref_alt_common <- merge(ref, alt, by=c("Sequence", "Motif Name"))
+#fwrite(ref_alt_common, "q2_3_output/ref_alt_common.txt", sep="\t")
 
 # > nrow(ref_uniqueTFs <-ref[!duplicated(ref$"Motif Name"),])
 # [1] 426
@@ -291,38 +298,76 @@ ref_alt_common <- merge(ref, alt, by=c("Sequence", "Motif Name"))
 
 # ~20,000 each
 
-in_ref_not_alt <- anti_join(ref, alt, by="Motif Name")
-in_alt_not_ref <- anti_join(alt, ref, by="Motif Name")
+# in_ref_not_alt <- anti_join(ref, alt, by="Motif Name")
+# in_alt_not_ref <- anti_join(alt, ref, by="Motif Name")
 
 # 0
 # 0 
 
-colnames(ref) <- c("FASTA_ID", "ref_Offset", "Sequence", "Motif Name", "ref_Strand", "ref_MotifScore")
-colnames(alt) <- c("FASTA_ID", "alt_Offset", "Sequence", "Motif Name", "alt_Strand", "alt_MotifScore")
 ref$FASTA_ID_Abb <- substr(ref$FASTA_ID, 1, regexpr("\\-", ref$FASTA_ID)-1) # didn't work: gsub(" \\-.*", "", ref$FASTA_ID)
 alt$FASTA_ID_Abb <- substr(alt$FASTA_ID, 1, regexpr("\\-", alt$FASTA_ID)-1) # didn't work: gsub(" \\-.*", "", alt$FASTA_ID)
+colnames(ref) <- c("FASTA_ID", "ref_Offset", "Sequence", "Motif Name", "ref_Strand", "ref_MotifScore", "FASTA_ID_Abb")
+colnames(alt) <- c("FASTA_ID", "alt_Offset", "Sequence", "Motif Name", "alt_Strand", "alt_MotifScore", "FASTA_ID_Abb")
 in_ref_not_alt <- anti_join(ref, alt, by=c("FASTA_ID_Abb", "Motif Name"))
 in_alt_not_ref <- anti_join(alt, ref, by=c("FASTA_ID_Abb", "Motif Name"))
+# fwrite(in_ref_not_alt, "q2_3_output/in_ref_not_alt_by_motif_name_fastaid.txt", sep="\t")
+# fwrite(in_alt_not_ref, "q2_3_output/in_alt_not_ref_by_motif_name_fastaid.txt", sep="\t")
 
 # nrow(in_alt_not_ref)
-# [1] 530699
+# [1] 556934
 # > nrow(in_ref_not_alt)
-# [1] 588670
+# [1] 535066
 
 in_ref_not_alt_unique <- in_ref_not_alt[!duplicated(in_ref_not_alt$FASTA_ID_Abb),] 
 in_alt_not_ref_unique <- in_alt_not_ref[!duplicated(in_alt_not_ref$FASTA_ID_Abb),] 
+# fwrite(in_ref_not_alt_unique, "q2_3_output/in_ref_not_alt_unique.txt", sep="\t")
+# fwrite(in_alt_not_ref_unique, "q2_3_output/in_alt_not_ref_unique.txt", sep="\t")
 
-# > nrow(x)
-# [1] 73345
-# > nrow(y)
-# [1] 69674
+# > nrow(in_ref_not_alt_unique)
+# [1] 70550
+# > nrow(in_alt_not_ref_unique)
+# [1] 72078
 
 # not necessary
+a_gene_snp <- fread("q2_3_output/a_gene_snp.txt", sep="\t")
 a_gene_snp_new <- data.table(a_gene_snp[,"SNP"], paste("chromosome:GRCh37:",a_gene_snp$SNPChr,":", a_gene_snp$SNPWindowStart,":", a_gene_snp$SNPWindowEnd,":1",sep=""))
-in_ref_not_alt_unique_SNP <- merge(a_gene_snp_new, in_ref_not_alt_unique, by.x="V2", by.y="FASTA_ID_Abb") # inner_join doesn't work?
-in_alt_not_ref_unique_SNP <- merge(a_gene_snp_new, in_alt_not_ref_unique, by.x="V2", by.y="FASTA_ID_Abb") # inner_join doesn't work?
+colnames(a_gene_snp_new)[2] <- "SNPWindow"
+in_ref_not_alt_unique_SNP <- merge(a_gene_snp_new, in_ref_not_alt_unique, by.x="SNPWindow", by.y="FASTA_ID_Abb", all.y=T) # inner_join doesn't work?
+in_alt_not_ref_unique_SNP <- merge(a_gene_snp_new, in_alt_not_ref_unique, by.x="SNPWindow", by.y="FASTA_ID_Abb", all.y=T) # inner_join doesn't work?
+fwrite(in_ref_not_alt_unique_SNP, "q2_3_output/in_ref_not_alt_unique_SNP.txt", sep="\t")
+fwrite(in_alt_not_ref_unique_SNP, "q2_3_output/in_alt_not_ref_unique_SNP.txt", sep="\t")
 
 # > nrow(in_ref_not_alt_unique_SNP)
-# [1] 281009
+# [1] 264905
 # > nrow(in_alt_not_ref_unique_SNP)
-# [1] 266234
+# [1] 269853
+
+# dim(in_ref_not_alt_unique_SNP[!duplicated(in_ref_not_alt_unique_SNP),])
+# [1] 70550     8
+# dim(in_alt_not_ref_unique_SNP[!duplicated(in_alt_not_ref_unique_SNP),])
+# [1] 72078     8
+# This checks out!
+
+# ==========================================================
+# read homer output
+# ==========================================================
+
+in_ref_not_alt_unique_SNP <- fread("q2_3_output/in_ref_not_alt_unique_SNP.txt")
+in_alt_not_ref_unique_SNP <- fread("q2_3_output/in_ref_not_alt_unique_SNP.txt")
+
+x1 <- in_ref_not_alt_unique_SNP[!duplicated(in_ref_not_alt_unique_SNP),] # 70550
+x2 <- in_alt_not_ref_unique_SNP[!duplicated(in_alt_not_ref_unique_SNP),] # 72078
+
+# can you pull out a couple examples of TFs (maybe 1 or 2) from these 73K and
+# identify which part of the motif is affected by the SNP? I bet it
+# will be the part of a motif where there is a very heavy weight on one
+# particular nucleotide and messing that up results in failure to identify the
+# motif with the alternative allele. also, could you show one or two examples of
+# TFs from the 69K set, where searching the reference genome fails to identify a
+# motif but searching with the alternative allele finds it? Similarly, I bet the
+# SNPs occur in the super important core part of the motif with high
+# probabilities (from the PWM) for that nucleotide. Do you have experience
+# making sequence logos? they’re fun plots to show the
+# important of each nucleotide in a motif
+
+
